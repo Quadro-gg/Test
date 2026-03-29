@@ -1,0 +1,11 @@
+[build]
+  base = "mahjong-dojo"
+  command = "npx prisma generate && npm run build"
+  publish = "mahjong-dojo/.next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  DATABASE_URL = "file:./prisma/dev.db"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
