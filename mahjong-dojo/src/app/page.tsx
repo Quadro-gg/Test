@@ -1,102 +1,112 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { createFullTileSet, shuffleTiles, sortTiles } from "@/lib/tiles";
-import type { Tile as TileType } from "@/lib/tiles";
-import Hand from "@/components/Hand";
-import DiscardPool from "@/components/DiscardPool";
+import { useEffect } from "react";
+import Link from "next/link";
+import { useProgressStore } from "@/lib/progress-store";
+import XPBar from "@/components/dashboard/XPBar";
+import StreakDisplay from "@/components/dashboard/StreakDisplay";
+import AchievementGrid from "@/components/dashboard/AchievementGrid";
+import StatsCard from "@/components/dashboard/StatsCard";
+import { ALL_LESSONS } from "@/data/lessons";
 
 export default function Home() {
-  const fullSet = useMemo(() => createFullTileSet(), []);
-  const [hand, setHand] = useState<TileType[]>([]);
-  const [discards, setDiscards] = useState<TileType[]>([]);
-  const [wall, setWall] = useState<TileType[]>([]);
+  const {
+    xp,
+    level,
+    streakDays,
+    completedLessons,
+    unlockedAchievements,
+    drillStats,
+    gameStats,
+    checkStreak,
+  } = useProgressStore();
 
-  function dealHand() {
-    const shuffled = shuffleTiles(fullSet);
-    setHand(shuffled.slice(0, 13));
-    setWall(shuffled.slice(13));
-    setDiscards([]);
-  }
+  useEffect(() => {
+    checkStreak();
+  }, [checkStreak]);
 
-  function drawTile() {
-    if (wall.length === 0) return;
-    setHand((prev) => [...prev, wall[0]]);
-    setWall((prev) => prev.slice(1));
-  }
-
-  function discardTile(tile: TileType) {
-    setHand((prev) => prev.filter((t) => t.id !== tile.id));
-    setDiscards((prev) => [...prev, tile]);
-  }
+  const nextLesson = ALL_LESSONS.find((l) => !completedLessons.includes(l.id));
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">Mahjong Dojo</h1>
-        <p className="text-gray-600">
-          Learn and master Riichi Mahjong — interactive lessons, drills, and AI
-          games.
-        </p>
+    <div className="space-y-6">
+      {/* Welcome / XP */}
+      <div className="bg-white rounded-lg shadow p-6 space-y-4">
+        <h1 className="text-2xl font-bold">Mahjong Dojo</h1>
+        <XPBar xp={xp} />
+        <StreakDisplay streakDays={streakDays} />
       </div>
 
-      {/* Tile sandbox */}
-      <section className="bg-white rounded-lg shadow p-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold">Tile Sandbox</h2>
-          <button
-            onClick={dealHand}
-            className="px-4 py-1.5 bg-emerald-700 text-white rounded text-sm font-medium hover:bg-emerald-600 transition-colors"
+      {/* Quick start buttons */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {nextLesson && (
+          <Link
+            href={`/lessons/${nextLesson.id}`}
+            className="bg-emerald-700 text-white rounded-lg p-4 text-center hover:bg-emerald-600 transition-colors"
           >
-            Deal Hand
-          </button>
-          {hand.length > 0 && hand.length < 14 && (
-            <button
-              onClick={drawTile}
-              className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-500 transition-colors"
-            >
-              Draw Tile ({wall.length} left)
-            </button>
-          )}
+            <div className="text-sm font-medium">Continue Lesson</div>
+            <div className="text-xs opacity-80 mt-1">{nextLesson.title}</div>
+          </Link>
+        )}
+        <Link
+          href="/drills/discard"
+          className="bg-blue-600 text-white rounded-lg p-4 text-center hover:bg-blue-500 transition-colors"
+        >
+          <div className="text-sm font-medium">Quick Drill</div>
+          <div className="text-xs opacity-80 mt-1">Discard Trainer</div>
+        </Link>
+        <Link
+          href="/play"
+          className="bg-amber-500 text-white rounded-lg p-4 text-center hover:bg-amber-400 transition-colors"
+        >
+          <div className="text-sm font-medium">Quick Match</div>
+          <div className="text-xs opacity-80 mt-1">vs AI</div>
+        </Link>
+        <Link
+          href="/lessons"
+          className="bg-gray-100 text-gray-700 rounded-lg p-4 text-center hover:bg-gray-200 transition-colors"
+        >
+          <div className="text-sm font-medium">All Lessons</div>
+          <div className="text-xs opacity-60 mt-1">{completedLessons.length}/{ALL_LESSONS.length} done</div>
+        </Link>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatsCard
+          label="Lessons"
+          value={`${completedLessons.length}/${ALL_LESSONS.length}`}
+        />
+        <StatsCard
+          label="Drill Accuracy"
+          value={
+            drillStats.totalRounds > 0
+              ? `${Math.round((drillStats.correctAnswers / drillStats.totalRounds) * 100)}%`
+              : "—"
+          }
+          sub={`${drillStats.totalRounds} rounds`}
+        />
+        <StatsCard
+          label="Games Won"
+          value={gameStats.gamesWon}
+          sub={`${gameStats.gamesPlayed} played`}
+        />
+        <StatsCard
+          label="Best Streak"
+          value={drillStats.bestStreak}
+          sub="drills in a row"
+        />
+      </div>
+
+      {/* Recent achievements */}
+      <div className="bg-white rounded-lg shadow p-6 space-y-3">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-semibold">Achievements</h2>
+          <Link href="/achievements" className="text-sm text-emerald-600 hover:underline">
+            View all
+          </Link>
         </div>
-
-        {hand.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">
-              Your Hand ({hand.length} tiles)
-              {hand.length > 13 && " — click a tile to discard"}
-            </h3>
-            <Hand
-              tiles={hand}
-              size="lg"
-              selectable={hand.length > 13}
-              onTileClick={hand.length > 13 ? discardTile : undefined}
-            />
-          </div>
-        )}
-
-        {discards.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">
-              Discards ({discards.length})
-            </h3>
-            <DiscardPool tiles={discards} size="md" />
-          </div>
-        )}
-      </section>
-
-      {/* Full tile reference */}
-      <section className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h2 className="text-lg font-semibold">All 136 Tiles</h2>
-        <p className="text-sm text-gray-500">
-          The complete Riichi Mahjong tile set — 3 suits (9 values &times; 4
-          copies) + 4 winds &times; 4 + 3 dragons &times; 4
-        </p>
-        <Hand tiles={sortTiles(fullSet.slice(0, 36))} size="sm" sorted={false} />
-        <Hand tiles={sortTiles(fullSet.slice(36, 72))} size="sm" sorted={false} />
-        <Hand tiles={sortTiles(fullSet.slice(72, 108))} size="sm" sorted={false} />
-        <Hand tiles={sortTiles(fullSet.slice(108))} size="sm" sorted={false} />
-      </section>
+        <AchievementGrid unlockedIds={unlockedAchievements} />
+      </div>
     </div>
   );
 }

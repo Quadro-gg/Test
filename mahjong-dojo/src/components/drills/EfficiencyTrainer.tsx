@@ -5,6 +5,8 @@ import type { TileFace, Tile as TileType } from "@/lib/tiles";
 import { createFullTileSet, shuffleTiles, tileCode } from "@/lib/tiles";
 import { calculateShanten, tileAcceptance } from "@/engine/hand-utils";
 import Tile from "@/components/Tile";
+import { useProgressStore } from "@/lib/progress-store";
+import { XP_REWARDS } from "@/lib/progression";
 
 function generateHand(): { hand: TileFace[]; drawn: TileFace } {
   const tiles = shuffleTiles(createFullTileSet());
@@ -26,6 +28,7 @@ export default function EfficiencyTrainer() {
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [streak, setStreak] = useState(0);
+  const { addXP, recordDrill, unlockAchievement } = useProgressStore();
 
   const fullHand = [...handState.hand, handState.drawn];
 
@@ -60,12 +63,15 @@ export default function EfficiencyTrainer() {
       .filter((o) => o.shanten === bestOption.shanten && o.acceptance === bestOption.acceptance)
       .some((o) => tileCode(o.face) === selectedCode);
 
-    setScore((s) => ({
-      correct: s.correct + (isCorrect ? 1 : 0),
-      total: s.total + 1,
-    }));
+    const newTotal = score.total + 1;
+    const newCorrect = score.correct + (isCorrect ? 1 : 0);
+    setScore({ correct: newCorrect, total: newTotal });
     setStreak(isCorrect ? streak + 1 : 0);
     setShowResult(true);
+
+    recordDrill(isCorrect);
+    if (isCorrect) addXP(XP_REWARDS.drillCorrect);
+    if (newTotal >= 10 && newCorrect / newTotal >= 0.8) unlockAchievement("efficiency-expert");
   }
 
   function handleNext() {

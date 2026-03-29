@@ -5,6 +5,8 @@ import type { TileFace } from "@/lib/tiles";
 import { tileCode } from "@/lib/tiles";
 import { TENPAI_SCENARIOS } from "@/data/drill-scenarios";
 import Tile from "@/components/Tile";
+import { useProgressStore } from "@/lib/progress-store";
+import { XP_REWARDS } from "@/lib/progression";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -39,6 +41,8 @@ export default function TenpaiQuiz() {
   const [selectedWaits, setSelectedWaits] = useState<Set<string>>(new Set());
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [correctStreak, setCorrectStreak] = useState(0);
+  const { addXP, recordDrill, unlockAchievement } = useProgressStore();
 
   const scenario = scenarios[currentIdx % scenarios.length];
   const correctCodes = new Set(scenario.waits.map(tileCode));
@@ -64,6 +68,13 @@ export default function TenpaiQuiz() {
       total: s.total + 1,
     }));
     setShowResult(true);
+
+    recordDrill(isCorrect);
+    const newStreak = isCorrect ? correctStreak + 1 : 0;
+    setCorrectStreak(newStreak);
+    if (isCorrect) addXP(XP_REWARDS.drillCorrect);
+    if (newStreak >= 5) unlockAchievement("tenpai-master");
+    if (newStreak >= 10) unlockAchievement("sharp-eye");
   }
 
   function handleNext() {

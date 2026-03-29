@@ -1,8 +1,9 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getLessonById } from "@/data/lessons";
+import { getLessonById, ALL_LESSONS } from "@/data/lessons";
+import { useProgressStore } from "@/lib/progress-store";
+import { XP_REWARDS } from "@/lib/progression";
 import LessonPlayer from "@/components/lessons/LessonPlayer";
 import Link from "next/link";
 
@@ -12,9 +13,9 @@ export default function LessonPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
   const lesson = getLessonById(id);
   const [completed, setCompleted] = useState(false);
+  const { addXP, completeLesson, completedLessons, unlockAchievement } = useProgressStore();
 
   if (!lesson) {
     return (
@@ -26,6 +27,26 @@ export default function LessonPage({
       </div>
     );
   }
+
+  function handleComplete() {
+    const alreadyDone = completedLessons.includes(lesson!.id);
+    setCompleted(true);
+
+    if (!alreadyDone) {
+      addXP(lesson!.xpReward);
+      completeLesson(lesson!.id);
+
+      // Achievement checks
+      const newCompleted = [...completedLessons, lesson!.id];
+      if (newCompleted.length === 1) unlockAchievement("first-steps");
+      if (newCompleted.length >= 3) unlockAchievement("quick-learner");
+      if (newCompleted.length >= ALL_LESSONS.length) unlockAchievement("bookworm");
+    }
+  }
+
+  const nextLesson = ALL_LESSONS.find(
+    (l) => l.order === lesson.order + 1
+  );
 
   if (completed) {
     return (
@@ -43,11 +64,18 @@ export default function LessonPage({
           >
             All Lessons
           </Link>
+          {nextLesson && (
+            <Link
+              href={`/lessons/${nextLesson.id}`}
+              className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-medium hover:bg-emerald-600"
+              onClick={() => setCompleted(false)}
+            >
+              Next: {nextLesson.title}
+            </Link>
+          )}
           <button
-            onClick={() => {
-              setCompleted(false);
-            }}
-            className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-medium hover:bg-emerald-600"
+            onClick={() => setCompleted(false)}
+            className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
           >
             Replay
           </button>
@@ -65,7 +93,7 @@ export default function LessonPage({
         <span>/</span>
         <span className="text-gray-900">{lesson.title}</span>
       </div>
-      <LessonPlayer lesson={lesson} onComplete={() => setCompleted(true)} />
+      <LessonPlayer lesson={lesson} onComplete={handleComplete} />
     </div>
   );
 }

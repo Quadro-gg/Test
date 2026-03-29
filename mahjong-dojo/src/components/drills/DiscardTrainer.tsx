@@ -6,6 +6,8 @@ import { tileCode } from "@/lib/tiles";
 import { DISCARD_SCENARIOS } from "@/data/drill-scenarios";
 import type { DiscardScenario } from "@/data/drill-scenarios";
 import Tile from "@/components/Tile";
+import { useProgressStore } from "@/lib/progress-store";
+import { XP_REWARDS } from "@/lib/progression";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -23,6 +25,7 @@ export default function DiscardTrainer() {
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [streak, setStreak] = useState(0);
+  const { addXP, recordDrill, unlockAchievement } = useProgressStore();
 
   const scenario = scenarios[currentIdx % scenarios.length];
   const hand = scenario.hand;
@@ -37,12 +40,18 @@ export default function DiscardTrainer() {
     const selectedFace = hand[selected];
     const isCorrect = tileCode(selectedFace) === tileCode(scenario.bestDiscard);
 
-    setScore((s) => ({
-      correct: s.correct + (isCorrect ? 1 : 0),
-      total: s.total + 1,
-    }));
-    setStreak(isCorrect ? streak + 1 : 0);
+    const newTotal = score.total + 1;
+    const newCorrect = score.correct + (isCorrect ? 1 : 0);
+    const newStreak = isCorrect ? streak + 1 : 0;
+    setScore({ correct: newCorrect, total: newTotal });
+    setStreak(newStreak);
     setShowResult(true);
+
+    recordDrill(isCorrect);
+    if (isCorrect) addXP(XP_REWARDS.drillCorrect);
+    if (newStreak === 10) unlockAchievement("sharp-eye");
+    if (newTotal >= 50) unlockAchievement("drill-sergeant");
+    if (newTotal >= 10 && newCorrect / newTotal >= 0.9) unlockAchievement("discard-pro");
   }
 
   function handleNext() {
